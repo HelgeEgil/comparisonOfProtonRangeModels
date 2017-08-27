@@ -209,10 +209,17 @@ void Run(int COUNTER) {
    Double_t          deltaHybrid[numberOfEnergies] = {};
    Double_t          deltaHybridInv[numberOfEnergies] = {};
 
+   const Int_t       nPSTAR = 309;
+   Double_t          energyPSTAR[nPSTAR] = {}; 
+   Double_t          energylossPSTAR[nPSTAR] = {}; 
+   Double_t          rangePSTAR[nPSTAR] = {}; 
+   Double_t          E = 190;
+
    cout << "Reading file\n";
-   in.open("ranges_water_pstar4_1e-4.csv");
-//   in.open("Ranges_2mm_Al.csv");
-//   in.open("Ranges_3mm_Al.csv");
+//   in.open("ranges_water_pstar4_1e-4.csv");
+//   in.open("energies_ranges_Al.csv");
+//   in.open("energies_ranges_A150.csv");
+   in.open("energies_ranges_W.csv");
    idx = 0;
    Bool_t useCSDA = true;
    Bool_t useCompleteDataset = false;
@@ -241,17 +248,33 @@ void Run(int COUNTER) {
          ranges[idxPara] = range;
          energies[idxPara] = energy;
          idxPara++;
-         printf("%.0f MeV added to training dataset.\n", energy);
+//         printf("%.0f MeV added to training dataset.\n", energy);
       }
 
       if (idx%2 != 0 || useCompleteDataset) { // odd
          ranges_control[idxCtrl] = range;
          energies_control[idxCtrl] = energy;
          idxCtrl++;
-         printf("%.0f MeV added to control dataset.\n", energy);
+//         printf("%.0f MeV added to control dataset.\n", energy);
       }
       idx++;
    }
+
+   in.close();
+
+   in.open("pstar_energy_loss.csv");
+   Int_t idxPSTAR = 0;
+   Double_t pstarE, pstarEL, pstarR;
+   while (1) {
+      in >> pstarE >> pstarEL >> pstarR;
+
+      if (!in.good()) break;
+
+      energylossPSTAR[idxPSTAR] = pstarEL;
+      rangePSTAR[idxPSTAR++] = pstarR;
+   }
+
+   in.close();
 
    TGraph *gBK = new TGraph(idxPara, energies, ranges);
    TGraph *gBKc = new TGraph(idxCtrl, energies_control, ranges_control);
@@ -314,15 +337,19 @@ void Run(int COUNTER) {
    splineInv->Draw("same");
 
    cout << "Fitting functions\n";
-   braggKleeman = new TF1("braggKleeman", "[0] * pow(x, [1])", 0, 500);
-   braggKleeman_zoom = new TF1("braggKleeman_zoom", "[0] * pow(x, [1])", 0, 500);
-   braggKleemanInv = new TF1("braggKleemanInv", "pow(x/[0], 1/[1])", 0, 500);
-   fitFunction = new TF1("fitFunction", "[0] * x * (1 + ([1] - [1]* exp(-[2] * x)) + ([3] - [3] * exp(-[4]*x)))", 0, 500);
-   fitInvFunction = new TF1("fitInvFunction", "x * ([0] * exp ( - [1] * x) + [2] * exp( - [3] * x) + [4] * exp( - [5] * x) + [6] * exp(-[7] * x) + [8] * exp(-[9] * x))", 0, 500);
+   braggKleeman = new TF1("braggKleeman", "[0] * pow(x, [1])", 0, 250);
+   braggKleeman_zoom = new TF1("braggKleeman_zoom", "[0] * pow(x, [1])", 0, 250);
+   braggKleemanInv = new TF1("braggKleemanInv", "pow(x/[0], 1/[1])", 0, 250);
+   fitFunction = new TF1("fitFunction", "[0] * x * (1 + ([1] - [1]* exp(-[2] * x)) + ([3] - [3] * exp(-[4]*x)))", 0, 250);
+   fitInvFunction = new TF1("fitInvFunction", "x * ([0] * exp ( - [1] * x) + [2] * exp( - [3] * x) + [4] * exp( - [5] * x) + [6] * exp(-[7] * x) + [8] * exp(-[9] * x))", 0, 250);
  
 
-   braggKleeman->SetParameters(0.45, 1.7);
-   braggKleemanInv->SetParameters(0.45, 1.7);
+   braggKleeman->SetParameters(0.0022, 1.77);
+   braggKleemanInv->SetParameters(0.0022, 1.77);
+
+   braggKleeman->SetParLimits(0, 0.0005, 0.02);
+   braggKleeman->SetParLimits(1, 1.5, 2);
+
    fitFunction->SetParameters(6.94656e-2/2, 15.14450027, 0.001260021, 29.84400076, 0.003260031);
    fitInvFunction->SetParameters(9.663872*2, 1/0.975*2, 2.50472*2, 1/12.4999*2, 0.880745*2, 1/57.001*2, 0.419001*2, 1/106.501*2, 0.92732*2, 1/1067.2784*2);
 
@@ -331,7 +358,6 @@ void Run(int COUNTER) {
    fitFunction->SetParLimits(2, 0.0001, 0.0045);
    fitFunction->SetParLimits(3, 10, 90);
    fitFunction->SetParLimits(4, 0.0006, 0.01);
-   
 
    fitInvFunction->SetParLimits(0, 0.1, 100);
    fitInvFunction->SetParLimits(1, 0.0001, 1);
@@ -344,16 +370,17 @@ void Run(int COUNTER) {
    fitInvFunction->SetParLimits(8, 0.1, 100);
    fitInvFunction->SetParLimits(9, 0.0001, 1);
 
-   braggKleeman->SetNpx(1000);
+   braggKleeman->SetNpx(5000);
    fitFunction->SetNpx(1000);
    fitInvFunction->SetNpx(1000);
-
 
    c1->cd();
    gBK->Draw("PA");
    braggKleeman->SetLineColor(kBlack);
    braggKleeman->SetLineWidth(1);
-   gBK->Fit("braggKleeman", "M, B, Q");
+   gBK->Fit("braggKleeman", "Q, B, M", "", 0, 250);
+//   braggKleeman->SetParameters(0.0022, 1.77); // Bortfeld 1997
+//   braggKleeman->SetParameters(0.00254, 1.74); // Bortfeld 1997
    gBK->SetTitle(";Energy [MeV];Range [cm]");
    gBK->SetMarkerColor(kColorBK);
    gBK->SetMarkerStyle(20);
@@ -660,44 +687,51 @@ void Run(int COUNTER) {
    Double_t medianBK, medianBKInv, medianUlmer, medianUlmerInv, medianSpline, medianSplineInv, medianLinear, medianLinearInv;
    Double_t firstQuartileBK, firstQuartileBKInv, firstQuartileUlmer, firstQuartileUlmerInv, firstQuartileSpline, firstQuartileSplineInv, firstQuartileLinear, firstQuartileLinearInv;
    Double_t thirdQuartileBK, thirdQuartileBKInv, thirdQuartileUlmer, thirdQuartileUlmerInv, thirdQuartileSpline, thirdQuartileSplineInv, thirdQuartileLinear, thirdQuartileLinearInv;
-   aSize = sizeof(deltaBK) / sizeof(Double_t);
+   Double_t medianBK_mm, firstQuartileBK_mm, thirdQuartileBK_mm;
+//   aSize = sizeof(deltaBK) / sizeof(Double_t);
+   aSize = idxCtrl;
    Double_t tempArray[numberOfEnergies];
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaBK[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaBK[i]; cout << "BK tempArray[" << i << "] = " << tempArray[i] << endl;}
    sort(&tempArray[0], &tempArray[aSize]);
    medianBK = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileBK = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
    thirdQuartileBK = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaBKInv[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaBKInv[i]; }
    sort(&tempArray[0], &tempArray[aSize]);
    medianBKInv = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileBKInv = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
    thirdQuartileBKInv = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaUlmer[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaBK[i] * ranges_control[i] / 100; cout << "tempArray[" << i << "] = " << tempArray[i] << ", ranges_control[i] = " << ranges_control[i] << endl;}
+   sort(&tempArray[0], &tempArray[aSize]);
+   medianBK_mm = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
+   firstQuartileBK_mm = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
+   thirdQuartileBK_mm = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaUlmer[i]; }
    sort(&tempArray[0], &tempArray[aSize]);
    medianUlmer = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileUlmer = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
    thirdQuartileUlmer = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaUlmerInv[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaUlmerInv[i]; }
    sort(&tempArray[0], &tempArray[aSize]);
    medianUlmerInv = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileUlmerInv = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
    thirdQuartileUlmerInv = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaSpline[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaSpline[i]; }
    sort(&tempArray[0], &tempArray[aSize]);
    medianSpline = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileSpline = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
    thirdQuartileSpline = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaSplineInv[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaSplineInv[i]; }
    sort(&tempArray[0], &tempArray[aSize]);
    medianSplineInv = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileSplineInv = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
    thirdQuartileSplineInv = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaLinear[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaLinear[i]; }
    sort(&tempArray[0], &tempArray[aSize]);
    medianLinear = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileLinear = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
    thirdQuartileLinear = aSize % 4 ? tempArray[aSize * 3 / 4] : (tempArray[aSize * 3/ 4 - 1] + tempArray[aSize * 3 / 4]) / 2;
-   for (int i=0; i<numberOfEnergies; i++) { tempArray[i] = deltaLinearInv[i]; }
+   for (int i=0; i<idxCtrl; i++) { tempArray[i] = deltaLinearInv[i]; }
    sort(&tempArray[0], &tempArray[aSize]);
    medianLinearInv = aSize % 2 ? tempArray[aSize / 2] : (tempArray[aSize / 2 - 1] + tempArray[aSize/2]) / 2;
    firstQuartileLinearInv = aSize % 4 ? tempArray[aSize / 4] : (tempArray[aSize / 4 - 1] + tempArray[aSize/4]) / 2;
@@ -705,6 +739,7 @@ void Run(int COUNTER) {
    
    printf("\033[1mMEDIAN VALUES....\033[0m\n");
    printf("Bragg-Kleeman: (%.3f%%, %.3f%%, %.3f%%), Inverse Bragg-Kleeman: (%.3f%%, %.3f%%, %.3f%%)\n", firstQuartileBK, medianBK, thirdQuartileBK, firstQuartileBKInv, medianBKInv, thirdQuartileBKInv);
+   printf("Bragg-Kleeman: (%.5f cm, %.5f cm, %.5f cm)\n", firstQuartileBK_mm, medianBK_mm, thirdQuartileBK_mm);
    printf("Ulmer: (%.3f%%, %.3f%%, %.3f%%), Inverse Ulmer: (%.3f%%, %.3f%%, %.3f%%)\n", firstQuartileUlmer, medianUlmer, thirdQuartileUlmer, firstQuartileUlmerInv, medianUlmerInv, thirdQuartileUlmerInv);
    printf("Linear: (%.3f%%, %.3f%%, %.3f%%), Inverse linear: (%.3f%%, %.3f%%, %.3f%%)\n", firstQuartileLinear, medianLinear, thirdQuartileLinear, firstQuartileLinearInv, medianLinearInv, thirdQuartileLinearInv);
    printf("Spline: (%.3f%%, %.3f%%, %.3f%%), Inverse spline: (%.3f%%, %.3f%%, %.3f%%)\n\033[0m", firstQuartileSpline, medianSpline, thirdQuartileSpline, firstQuartileSplineInv, medianSplineInv, thirdQuartileSplineInv);
@@ -715,6 +750,8 @@ void Run(int COUNTER) {
    file << " " <<  firstQuartileSpline << " " << medianSpline << " " << thirdQuartileSpline << " " << firstQuartileSplineInv << " " << medianSplineInv << " " << thirdQuartileSplineInv;
    file << " " <<  firstQuartileLinear << " " << medianLinear << " " << thirdQuartileLinear << " " << firstQuartileLinearInv << " " << medianLinearInv << " " << thirdQuartileLinearInv << endl;
    file.close();
+
+   cout << "75th percentile for Bragg Kleeman calculation is " << thirdQuartileBK << "%.\n";
 
    TCanvas *cCompare = new TCanvas("cCompare", "Error comparison", 1200, 900);
 //   cCompare->Divide(1,2,0.01,0.01);
@@ -814,7 +851,6 @@ void Run(int COUNTER) {
    Double_t alpha, p, a1, b1, g1, b2, g2;
    Double_t cc1, cc2, cc3, cc4, cc5;
    Double_t l1, l2, l3, l4, l5;
-   Double_t E = 190;
 
    range = gLinear->Eval(E);
 
@@ -915,6 +951,20 @@ void Run(int COUNTER) {
    }
    TGraph *DDSpline = new TGraph(idx+1, x_Spline, dEdx_Spline);
 
+   // Graph for PSTAR values
+
+   TSpline3 *splinePSTAR = new TSpline3("splinePSTAR", rangePSTAR, energylossPSTAR, idxPSTAR);
+   Double_t el_PSTAR[2390] = {};
+   Double_t d_PSTAR[2390] = {};
+   for (Int_t depthmm=0; depthmm < 2389; depthmm++) {
+      d_PSTAR[depthmm] = float(depthmm) / 100;
+      el_PSTAR[depthmm] = float(splinePSTAR->Eval((2376.92 - depthmm) / 100));
+   }
+
+   TGraph *DDPSTAR = new TGraph(2389, d_PSTAR, el_PSTAR);
+
+   DDPSTAR->SetLineWidth(2);
+   DDPSTAR->SetLineStyle(3);
    DDBK->SetLineColor(kColorBK);
    DDBK->SetLineWidth(3);
    DDBK->SetLineStyle(kLineBK);
@@ -977,6 +1027,7 @@ void Run(int COUNTER) {
    DDSpline->Draw("L");
    DDUlmer->Draw("same");
    DDBK->Draw("same");
+   DDPSTAR->Draw("same");
    
    /*
    gPad->Update();
@@ -991,6 +1042,7 @@ void Run(int COUNTER) {
    leg3->AddEntry(DDUlmer, "Sum of exponentials", "L");
    leg3->AddEntry(DDLinear, "Linear interpolation", "L");
    leg3->AddEntry(DDSpline, "Spline interpolation", "L");
+   leg3->AddEntry(DDPSTAR, "PSTAR values", "L");
    leg3->Draw();
    
 }

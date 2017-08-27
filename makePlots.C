@@ -83,28 +83,28 @@ void makePlots() {
       paraNPoints[pi] = pN;
       paraBKm[pi] = pBKm;
       paraBKl[pi] = pBKm - pBKl;
-      paraBKh[pi] = pBKh - pBKm;
+      paraBKh[pi] = pBKh;// - pBKm;
       paraBKInvm[pi] = pBKIm;
       paraBKInvl[pi] = pBKIm - pBKIl;
-      paraBKInvh[pi] = pBKIh - pBKIm;
+      paraBKInvh[pi] = pBKIh;// - pBKIm;
       paraUlmerm[pi] = pUlmerm;
       paraUlmerl[pi] = pUlmerm - pUlmerl;
-      paraUlmerh[pi] = pUlmerh - pUlmerm;
+      paraUlmerh[pi] = pUlmerh;// - pUlmerm;
       paraUlmerInvm[pi] = pUlmerIm;
       paraUlmerInvl[pi] = pUlmerIm - pUlmerIl;
-      paraUlmerInvh[pi] = pUlmerIh - pUlmerIm;
+      paraUlmerInvh[pi] = pUlmerIh;// - pUlmerIm;
       paraSplinem[pi] = pSplinem;
       paraSplinel[pi] = pSplinem - pSplinel;
-      paraSplineh[pi] = pSplineh - pSplinem;
+      paraSplineh[pi] = pSplineh;// - pSplinem;
       paraSplineInvm[pi] = pSplineIm;
       paraSplineInvl[pi] = pSplineIm - pSplineIl;
-      paraSplineInvh[pi] = pSplineIh - pSplineIm;
+      paraSplineInvh[pi] = pSplineIh;// - pSplineIm;
       paraLinearm[pi] = pLinearm;
       paraLinearl[pi] = pLinearm - pLinearl;
-      paraLinearh[pi] = pLinearh - pLinearm;
+      paraLinearh[pi] = pLinearh;// - pLinearm;
       paraLinearInvm[pi] = pLinearIm;
       paraLinearInvl[pi] = pLinearIm - pLinearIl;
-      paraLinearInvh[pi] = pLinearIh - pLinearIm;
+      paraLinearInvh[pi] = pLinearIh;// - pLinearIm;
 
       pi++;
    }
